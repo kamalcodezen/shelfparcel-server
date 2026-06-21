@@ -23,6 +23,7 @@ app.use(async (req, res, next) => {
         //   কালেকশনগুলো এখানে ডিফাইন করা হলো
         req.db = {
             // books: db.collection("books"),
+            books: db.collection("books"),
 
         };
 
@@ -32,10 +33,32 @@ app.use(async (req, res, next) => {
     }
 });
 
-// =======================================================================
-//         কোড লেখার সময় req.db.collectionName ব্যবহার করবেন
-// =======================================================================
+// =============================================================
+//  কোড লেখার সময় req.db.collectionName ব্যবহার করা যাবে
+// =============================================================
 
+// =============================================================
+//             Books Api feature
+// =============================================================
+
+// librarian book post korche 
+app.post('/api/books', async (req, res) => {
+    try {
+        const bookData = req.body;
+        const finalBookObj = {
+            ...bookData,
+            fee: Number(bookData.fee) || 0,
+            status: "Pending Approval",
+            createdAt: new Date()
+        };
+        const result = await req.db.books.insertOne(finalBookObj);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "An unexpected internal server error occurred."
+        });
+    }
+});
 
 
 
