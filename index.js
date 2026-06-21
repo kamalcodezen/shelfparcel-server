@@ -101,8 +101,38 @@ app.patch('/api/books/:id', async (req, res) => {
     }
 });
 
+// librarian book edit by id (update)
+app.patch('/api/books/edit/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const bookData = req.body;
+
+        // req.body থেকে যদি কোনোভাবে _id আসে, সেটা ডিলিট করে দেওয়া হলো
+        // কারণ মঙ্গোডিবিতে এক্সিস্টিং ডকুমেন্টের _id চেঞ্জ বা $set করা নিষিদ্ধ
+        delete bookData._id;
 
 
+        if (bookData.fee) {
+            bookData.fee = Number(bookData.fee) || 0;
+        }
+        const result = await req.db.books.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: bookData }
+        );
+
+        res.json({
+            success: true,
+            message: `Book details updated successfully to "${bookData.title || 'new title'}"!`,
+            result
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Internal Server Error"
+        });
+    }
+});
 
 
 
