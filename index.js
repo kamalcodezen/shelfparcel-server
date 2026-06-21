@@ -4,16 +4,19 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
+const { ObjectId } = require("mongodb");
 const { getDb } = require('./db');
 const app = express();
 const port = process.env.PORT || 8000;
 
-// গ্লোবাল মিডেলওয়্যারসমূহ
+
 app.use(cors({
-    origin: ["http://localhost:3000"], // নেক্সট.জিএস ফ্রন্টএন্ড পোর্ট
+    origin: ["http://localhost:3000"],
     credentials: true
 }));
 app.use(express.json());
+
+
 
 //  ডাটাবেজ কালেকশন মিডেলওয়্যার (প্রতি রিকোয়েস্টে অটো কালেকশন ইনজেক্ট করবে)
 app.use(async (req, res, next) => {
@@ -71,6 +74,32 @@ app.get('/api/books', async (req, res) => {
     res.json(result);
 
 })
+
+// librarian all books status change 
+app.patch('/api/books/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { currentStatus } = req.body;
+
+        if (currentStatus === "Pending Approval") {
+            return res.status(400).json({ success: false, message: " Waiting for Admin approval." });
+        }
+
+        const targetStatus = currentStatus === "Published" ? "Unpublished" : "Published";
+
+        const result = await req.db.books.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { status: targetStatus } }
+        );
+        res.json({
+            success: true,
+            message: `Book status successfully updated to ${targetStatus}! `,
+            result
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 
 
