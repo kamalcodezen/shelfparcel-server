@@ -191,7 +191,11 @@ app.delete('/api/books/delete/:id', async (req, res) => {
 // admin all books get
 app.get('/api/books/allBooks', async (req, res) => {
     try {
-        const result = await req.db.books.find({}).toArray();
+        const result = await req.db.books
+            .find({})
+            .sort({ createdAt: -1 })
+            .toArray();
+
         res.json(result);
     } catch (error) {
         res.status(500).json({
@@ -243,6 +247,48 @@ app.patch('/api/books/approveStatus/:id', async (req, res) => {
 
 
 })
+
+
+// admin book status check kore status update korbe (publish/unpublish)
+app.patch('/api/books/updateStatus/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // check korci jodi na thake thale amar frontend thke jeta sche oita set kore dao 
+        const targetStatus = ["Unpublished", "Published"];
+
+        if (!targetStatus.includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status" });
+        }
+
+        const result = await req.db.books.updateOne(
+            { _id: new ObjectId(id) },
+
+            { $set: { status: status } }
+        );
+        res.json({
+            success: true,
+            message: `Book status successfully updated to ${targetStatus}!`,
+            result
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Internal Server Error"
+        });
+    }
+})
+
+
+
+
+
+
+
+
+
+
 
 //================== Users =====================
 
