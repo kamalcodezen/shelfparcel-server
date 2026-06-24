@@ -472,6 +472,9 @@ app.delete('/api/users/comments/delete/:id', async (req, res) => {
 
 app.post('/api/payments', async (req, res) => {
 
+
+
+
     try {
         const { sessionId, bookId, bookTitle, bookCover, userId, userEmail, librarianId, librarianEmail, amount } = req.body;
         const paymentData = {
@@ -486,6 +489,17 @@ app.post('/api/payments', async (req, res) => {
             amount,
             status: "Pending",
             createdAt: new Date()
+        }
+
+        const isExists = await req.db.payments.findOne({
+            transactionId: sessionId
+        });
+
+        if (isExists) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment already exists!"
+            });
         }
 
         await req.db.payments.insertOne(paymentData);
