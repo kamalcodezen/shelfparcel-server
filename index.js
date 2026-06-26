@@ -56,17 +56,25 @@ const verifyToken = async (req, res, next) => {
         const query = { token: token };
         const session = await req.db.userSessions.findOne(query);
 
-        //  সেশন না পাওয়া গেলে এখানেই আটকে jabe
+        // সেশন না পাওয়া গেলে এখানেই আটকে jabe
         if (!session) {
             return res.status(401).json({ success: false, message: "Unauthorized. Invalid session." });
         }
 
         const userId = session?.userId;
 
-        //আইডি স্ট্রিং হলে ওটাকে মঙ্গোডিবির ObjectId বানিয়ে নেওয়া 
-        const userQuery = {
-            _id: ObjectId.isValid(userId) ? new ObjectId(userId) : userId
-        };
+        // আইডি স্ট্রিং হলে ওটাকে মঙ্গোডিবির ObjectId বানিয়ে নেওয়া (ক্র্যাশ সুরক্ষাসহ)
+        let userQuery = {};
+        if (userId && ObjectId.isValid(userId)) {
+            try {
+                userQuery._id = new ObjectId(userId);
+            } catch (err) {
+                userQuery._id = userId;
+            }
+        } else {
+            userQuery._id = userId;
+        }
+
         const user = await req.db.users.findOne(userQuery);
 
         if (!user) {
@@ -118,29 +126,33 @@ const verifyUser = async (req, res, next) => {
 app.get("/api/books/publishedBooks", async (req, res) => {
     try {
 
-        const { search, category, status, minFee, maxFee } = req.query;
+        const { search, category, status, minFee, maxFee, page, perPage } = req.query;
 
+        //  Compute numerical constraints safely using scope variables directly
+        const currentPage = Math.max(1, parseInt(page, 10) || 1);
+        const currentLimit = Math.max(6, Math.min(12, parseInt(perPage, 10) || 8));
+        const skipItems = (currentPage - 1) * currentLimit;
 
         let query = {};
 
-        //  নামের আংশিক বা সম্পূর্ণ ম্যাচিং ($regex দিয়ে কেস-সেন্সিটিভ ছাড়া 
+        //  Search filter
         if (search && search.trim() !== "") {
             query.title = { $regex: search, $options: "i" };
         }
 
-        // নির্দিষ্ট ক্যাটাগরি ফিল্টারিং
+        // Category filter
         if (category && category !== "all" && category.trim() !== "") {
             query.category = category;
         }
 
-        // Delivery fee range
+        //  Delivery fee budget range
         if (minFee || maxFee) {
             query.fee = {};
             if (minFee) query.fee.$gte = Number(minFee);
             if (maxFee) query.fee.$lte = Number(maxFee);
         }
 
-        // status Available/Unavailable
+        //  Status filter (Published/Checked Out)
         if (status && status !== "all") {
             if (status === "Available") {
                 query.status = "Published";
@@ -151,13 +163,30 @@ app.get("/api/books/publishedBooks", async (req, res) => {
             query.status = { $in: ["Published", "Checked Out"] };
         }
 
+        // Count total items based on your filters
+        const totalItems = await req.db.books.countDocuments(query);
 
-        const result = await req.db.books
+        // Fetch limited chunk explicitly using skip and limit
+        const booksData = await req.db.books
             .find(query)
             .sort({ createdAt: -1 })
+            .skip(skipItems)
+            .limit(currentLimit)
             .toArray();
 
-        res.json(result);
+        const totalPages = Math.ceil(totalItems / currentLimit);
+
+        // Send books and pagination metadata inside a single wrapper object
+        res.json({
+            success: true,
+            books: booksData,
+            meta: {
+                totalItems,
+                totalPages,
+                currentPage,
+                limit: currentLimit
+            }
+        });
 
     } catch (error) {
         console.error("Browse books fetch critical error:", error);
