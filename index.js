@@ -117,21 +117,58 @@ const verifyUser = async (req, res, next) => {
 // db te // all books get korche by status (Published & Checked Out)
 app.get("/api/books/publishedBooks", async (req, res) => {
     try {
+
+        const { search, category, status, minFee, maxFee } = req.query;
+
+
+        let query = {};
+
+        //  নামের আংশিক বা সম্পূর্ণ ম্যাচিং ($regex দিয়ে কেস-সেন্সিটিভ ছাড়া 
+        if (search && search.trim() !== "") {
+            query.title = { $regex: search, $options: "i" };
+        }
+
+        // নির্দিষ্ট ক্যাটাগরি ফিল্টারিং
+        if (category && category !== "all" && category.trim() !== "") {
+            query.category = category;
+        }
+
+        // Delivery fee range
+        if (minFee || maxFee) {
+            query.fee = {};
+            if (minFee) query.fee.$gte = Number(minFee);
+            if (maxFee) query.fee.$lte = Number(maxFee);
+        }
+
+        // status Available/Unavailable
+        if (status && status !== "all") {
+            if (status === "Available") {
+                query.status = "Published";
+            } else if (status === "Unavailable") {
+                query.status = "Checked Out";
+            }
+        } else {
+            query.status = { $in: ["Published", "Checked Out"] };
+        }
+
+
         const result = await req.db.books
-            .find({
-                status: { $in: ["Published", "Checked Out"] }
-            })
+            .find(query)
+            .sort({ createdAt: -1 })
             .toArray();
 
         res.json(result);
 
     } catch (error) {
+        console.error("Browse books fetch critical error:", error);
         res.status(500).json({
             success: false,
             message: error.message || "Internal Server Error",
         });
     }
 });
+
+
 
 // book details by id 
 app.get('/api/books/details/:id', async (req, res) => {
