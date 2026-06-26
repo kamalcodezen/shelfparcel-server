@@ -476,7 +476,7 @@ app.get("/api/users", verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // user delete by admin
-app.delete('/api/users/delete/:id', async (req, res) => {
+app.delete('/api/users/delete/:id', verifyToken, verifyAdmin, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await req.db.users.deleteOne({ _id: new ObjectId(id) });
