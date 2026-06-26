@@ -36,6 +36,8 @@ app.use(async (req, res, next) => {
 });
 
 
+// ================ middleware check================
+
 // Verify authorization header and extract bearer token
 const verifyToken = async (req, res, next) => {
     try {
@@ -97,15 +99,14 @@ const verifyAdmin = async (req, res, next) => {
 }
 
 // user(Reader) role check must be used after verifying token
-const verifyReader = async (req, res, next) => {
+const verifyUser = async (req, res, next) => {
     if (req?.user?.role !== "user") {
         return res.status(403).json({ success: false, message: "Unauthorized. Only Reader can access this route." });
     }
     next();
 }
 
-
-
+// ================ middleware check================
 
 
 
@@ -491,9 +492,15 @@ app.delete('/api/users/delete/:id', async (req, res) => {
     }
 });
 
-// user আইডি দিয়ে কমেন্ট গেট করার জন্য ইউআরএল পাথ আলাদা করা হলো ভাই
-app.get('/api/books/comments/:userId', async (req, res) => {
+// user id diye tar nijer comment get korchi
+app.get('/api/books/comments/:userId', verifyToken, verifyUser, async (req, res) => {
     const { userId } = req.params;
+
+    if (req?.user?._id?.toString() !== userId?.toString()) {
+        return res.status(403).json({ success: false, message: "Unauthorized. Only Reader can access this route." });
+    }
+
+
     try {
         const result = await req.db.comments.find({ userId: userId }).toArray();
         res.json(result);
