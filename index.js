@@ -331,7 +331,7 @@ app.patch('/api/books/approveStatus/:id', async (req, res) => {
 });
 
 // admin book status check kore status update korbe (publish/unpublish)
-app.patch('/api/books/updateStatus/:id', async (req, res) => {
+app.patch('/api/books/updateStatus/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
