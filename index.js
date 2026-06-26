@@ -38,41 +38,54 @@ app.use(async (req, res, next) => {
 
 // Verify authorization header and extract bearer token
 const verifyToken = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
 
-    const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ success: false, message: "Unauthorized. No token provided." });
+        }
 
-    if (!authHeader) {
-        return res.status(401).json({ success: false, message: "Unauthorized. No token provided." });
+        const token = authHeader.split(" ")[1];
+
+        if (!token) {
+            return res.status(401).json({ success: false, message: "Unauthorized. No token provided." });
+        }
+
+        const query = { token: token };
+        const session = await req.db.userSessions.findOne(query);
+
+        //  সেশন না পাওয়া গেলে এখানেই আটকে jabe
+        if (!session) {
+            return res.status(401).json({ success: false, message: "Unauthorized. Invalid session." });
+        }
+
+        const userId = session?.userId;
+
+        //আইডি স্ট্রিং হলে ওটাকে মঙ্গোডিবির ObjectId বানিয়ে নেওয়া 
+        const userQuery = {
+            _id: ObjectId.isValid(userId) ? new ObjectId(userId) : userId
+        };
+        const user = await req.db.users.findOne(userQuery);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        // set user in request Object
+        req.user = user;
+
+        next();
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Internal Auth Error" });
     }
-
-    const token = authHeader.split(" ")[1];
-
-    if (!token) {
-        return res.status(401).json({ success: false, message: "Unauthorized. No token provided." });
-    }
-
-    const query = { token: token };
-    const session = await req.db.userSessions.findOne(query);
-
-    const userId = session?.userId;
-
-    const userQuery = {
-        _id: userId
-    }
-    const user = await req.db.users.findOne(userQuery);
-    
-    // set user in request Object
-    req.user = user;
-
-    next()
-}
+};
 
 // librarian role check must be used after verifying token
 const verifyLibrarian = async (req, res, next) => {
     if (req?.user?.role !== "librarian") {
         return res.status(403).json({ success: false, message: "Unauthorized. Only Librarian can access this route." });
     }
-    next()
+    next();
 }
 
 // admin role check must be used after verifying token
@@ -80,7 +93,7 @@ const verifyAdmin = async (req, res, next) => {
     if (req?.user?.role !== "admin") {
         return res.status(403).json({ success: false, message: "Unauthorized. Only Admin can access this route." });
     }
-    next()
+    next();
 }
 
 // user(Reader) role check must be used after verifying token
@@ -88,7 +101,7 @@ const verifyReader = async (req, res, next) => {
     if (req?.user?.role !== "user") {
         return res.status(403).json({ success: false, message: "Unauthorized. Only Reader can access this route." });
     }
-    next()
+    next();
 }
 
 
@@ -153,8 +166,9 @@ app.get('/api/books', verifyToken, verifyLibrarian, async (req, res) => {
     try {
         const { librarianId } = req.query;
 
-
-        console.log()
+        if (req?.user?._id?.toString() !== librarianId?.toString()) {
+            return res.status(403).json({ success: false, message: "Unauthorized. Only Librarian can access this route." });
+        }
 
         //  আইডি স্ট্রিং হোক বা মঙ্গোডিবির ObjectId, দুই ক্যাটাগরিতেই যেন ডাটাবেজ ম্যাচ করতে পারে ভ
         const query = {
