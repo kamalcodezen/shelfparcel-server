@@ -446,7 +446,7 @@ app.patch('/api/users/updateRole/:id', async (req, res) => {
 });
 
 // user er sob data get korchi joto user ache tader list
-app.get("/api/users", async (req, res) => {
+app.get("/api/users", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const userCollection = await req.db.users;
         const users = await userCollection
