@@ -12,7 +12,7 @@ const port = process.env.PORT || 8000;
 app.use(cors({
     origin: [
         "http://localhost:3000",
-        "https://your-client.vercel.app"
+        "https://shelfparcel-client.vercel.app"
     ],
     credentials: true
 }));
